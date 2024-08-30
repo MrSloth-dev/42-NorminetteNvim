@@ -14,7 +14,7 @@ local function parse_norminette_output(output)
 				local diagnostic = {
 					bufnr = vim.fn.bufnr(current_file),
 					lnum = tonumber(line_num) - 1,
-					col = tonumber(col_num) - 1,
+					col = tonumber(col_num) - 4,
 					severity = vim.diagnostic.severity.ERROR,
 					source = "norminette",
 					message = error_type .. " : " .. message:gsub("^%s*", ""),
@@ -30,27 +30,22 @@ end
 
 -- Function to run norminette and update diagnostics
 function M.run_norminette()
+	vim.cmd("write")
 	local bufnr = vim.api.nvim_get_current_buf()
 	local filename = vim.api.nvim_buf_get_name(bufnr)
 	local namespace = vim.api.nvim_create_namespace("norminette")
-	-- Run norminette command
 	local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
-	-- Parse the output
 	local diagnostics = parse_norminette_output(output)
-	-- Clear existing diagnostics for this buffer and namespace
 	vim.diagnostic.reset(namespace, bufnr)
-	-- Set new diagnostics
 	vim.diagnostic.set(namespace, bufnr, diagnostics)
 end
 
--- Function to setup the plugin
-function M.setup()
-	-- Create an autocommand to run norminette on file save and when cursor is held
-	vim.api.nvim_create_autocmd({ "BufWritePost", "BufEnter", "CursorHold" }, {
+function M.setup(opts)
+	opts = {}
+	vim.api.nvim_create_autocmd({ "CursorHold" }, {
 		pattern = { "*.c", "*.h" },
 		callback = M.run_norminette,
 	})
-	-- Create a command to manually run norminette
 	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
 end
 
