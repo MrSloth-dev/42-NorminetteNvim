@@ -49,4 +49,6 @@ function M.setup(opts)
 	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
 end
 
+M.setup()
+
 return M
