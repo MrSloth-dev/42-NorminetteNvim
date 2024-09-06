@@ -1,5 +1,11 @@
 local M = {}
 
+M.version = "0.2"
+
+M.dependencies = { "nvim-lua/plenary.nvim" }
+
+local async = require("plenary.async")
+
 -- Function to parse the output of norminette
 local function parse_norminette_output(output)
 	local diagnostics = {}
@@ -29,16 +35,22 @@ local function parse_norminette_output(output)
 end
 
 -- Function to run norminette and update diagnostics
-function M.run_norminette()
+M.run_norminette = async.void(function()
 	vim.cmd("write")
 	local bufnr = vim.api.nvim_get_current_buf()
 	local filename = vim.api.nvim_buf_get_name(bufnr)
 	local namespace = vim.api.nvim_create_namespace("norminette")
-	local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
-	local diagnostics = parse_norminette_output(output)
-	vim.diagnostic.reset(namespace, bufnr)
-	vim.diagnostic.set(namespace, bufnr, diagnostics)
-end
+	async.run(function()
+		local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
+		return output
+	end, function(output)
+		local diagnostics = parse_norminette_output(output)
+		vim.schedule(function()
+			vim.diagnostic.reset(namespace, bufnr)
+			vim.diagnostic.set(namespace, bufnr, diagnostics)
+		end)
+	end)
+end)
 
 function M.setup()
 	vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
@@ -46,6 +58,7 @@ function M.setup()
 		callback = M.run_norminette,
 	})
 	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
+	vim.keymap.set("n", "<leader>n", M.run_norminette)
 end
 
 M.setup()
