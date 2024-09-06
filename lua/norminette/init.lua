@@ -40,9 +40,8 @@ function M.run_norminette()
 	vim.diagnostic.set(namespace, bufnr, diagnostics)
 end
 
-function M.setup(opts)
-	opts = {}
-	vim.api.nvim_create_autocmd({ "CursorHold" }, {
+function M.setup()
+	vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
 		pattern = { "*.c", "*.h" },
 		callback = M.run_norminette,
 	})
