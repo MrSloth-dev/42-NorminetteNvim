@@ -52,13 +52,29 @@ M.run_norminette = async.void(function()
 	end)
 end)
 
-function M.setup()
-	vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
-		pattern = { "*.c", "*.h" },
-		callback = M.run_norminette,
-	})
+function M.setup(opts)
+	opts = opts or {}
+	local default_opts = {
+		auto_run = false,
+		keybind = "<leader>n",
+	}
+
+	for k, v in pairs(default_opts) do
+		if opts[k] == nil then
+			opts[k] = v
+		end
+	end
+
+	if opts.auto_run then
+		vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold" }, {
+			pattern = { "*.c", "*.h" },
+			callback = M.run_norminette,
+		})
+	end
 	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
-	vim.keymap.set("n", "<leader>n", M.run_norminette)
+	if opts.keybind then
+		vim.keymap.set("n", opts.keybind, M.run_norminette)
+	end
 end
 
 M.setup()
