@@ -6,7 +6,6 @@ M.dependencies = { "nvim-lua/plenary.nvim" }
 
 local async = require("plenary.async")
 
--- Function to parse the output of norminette
 local function parse_norminette_output(output)
 	local diagnostics = {}
 	local current_file = nil
@@ -34,7 +33,6 @@ local function parse_norminette_output(output)
 	return diagnostics
 end
 
--- Function to run norminette and update diagnostics
 M.run_norminette = async.void(function()
 	vim.cmd("write")
 	local bufnr = vim.api.nvim_get_current_buf()
