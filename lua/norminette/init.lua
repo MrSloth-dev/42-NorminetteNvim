@@ -4,7 +4,7 @@ M.version = "0.3"
 
 M.dependencies = { "nvim-lua/plenary.nvim" }
 
-M.auto_run = false
+-- M.auto_run = false
 
 local has_plenary, async = pcall(require, "plenary.async")
 if not has_plenary then
@@ -88,7 +88,7 @@ function M.setup(opts)
 			opts[k] = v
 		end
 	end
-	M.auto_run = opts.auto_run
+	-- M.auto_run = opts.auto_run
 	if opts.auto_run then
 		vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold" }, {
 			pattern = { "*.c", "*.h" },
