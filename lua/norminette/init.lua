@@ -1,12 +1,12 @@
 local M = {}
 
-M.version = "0.2"
+M.version = "0.3"
 
 M.dependencies = { "nvim-lua/plenary.nvim" }
 
 local has_plenary, async = pcall(require, "plenary.async")
 if not has_plenary then
-	error("This plugin requires plenary.nvim. Please install it to use the norminette plugin.")
+	error("This plugin requires plenary.nvim. Please install it to use this plugin.")
 end
 
 local function parse_norminette_output(output)
@@ -36,21 +36,35 @@ local function parse_norminette_output(output)
 	return diagnostics
 end
 
+local function clear_diagnostics(namespace, bufnr)
+	vim.diagnostic.reset(namespace, bufnr)
+end
+
+local function diagnostics_exist(namespace, bufnr)
+	local diagnostics = vim.diagnostic.get(bufnr, { namespace = namespace })
+	return #diagnostics > 0
+end
+
 M.run_norminette = async.void(function()
-	vim.cmd("write")
 	local bufnr = vim.api.nvim_get_current_buf()
 	local filename = vim.api.nvim_buf_get_name(bufnr)
 	local namespace = vim.api.nvim_create_namespace("norminette")
-	async.run(function()
-		local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
-		return output
-	end, function(output)
-		local diagnostics = parse_norminette_output(output)
-		vim.schedule(function()
-			vim.diagnostic.reset(namespace, bufnr)
-			vim.diagnostic.set(namespace, bufnr, diagnostics)
+	if diagnostics_exist(namespace, bufnr) then
+		clear_diagnostics(namespace, bufnr)
+	else
+		vim.cmd("write")
+
+		async.run(function()
+			local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
+			return output
+		end, function(output)
+			local diagnostics = parse_norminette_output(output)
+			vim.schedule(function()
+				vim.diagnostic.reset(namespace, bufnr)
+				vim.diagnostic.set(namespace, bufnr, diagnostics)
+			end)
 		end)
-	end)
+	end
 end)
 
 function M.setup(opts)
@@ -59,13 +73,11 @@ function M.setup(opts)
 		auto_run = false,
 		keybind = "<leader>n",
 	}
-
 	for k, v in pairs(default_opts) do
 		if opts[k] == nil then
 			opts[k] = v
 		end
 	end
-
 	if opts.auto_run then
 		vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold" }, {
 			pattern = { "*.c", "*.h" },
@@ -74,7 +86,7 @@ function M.setup(opts)
 	end
 	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
 	if opts.keybind then
-		vim.keymap.set("n", opts.keybind, M.run_norminette)
+		vim.keymap.set("n", opts.keybind, M.run_norminette, { noremap = true, silent = true })
 	end
 end
 
