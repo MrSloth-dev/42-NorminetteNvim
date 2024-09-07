@@ -4,7 +4,10 @@ M.version = "0.2"
 
 M.dependencies = { "nvim-lua/plenary.nvim" }
 
-local async = require("plenary.async")
+local has_plenary, async = pcall(require, "plenary.async")
+if not has_plenary then
+	error("This plugin requires plenary.nvim. Please install it to use the norminette plugin.")
+end
 
 local function parse_norminette_output(output)
 	local diagnostics = {}
