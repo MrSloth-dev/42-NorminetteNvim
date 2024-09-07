@@ -50,23 +50,26 @@ This way you only need to press `<leader>q` and the split opens automatically.
 
 At the moment this plugin isn't working on 42's PCs maybe due to the location of the norminette binary. I will fix this ASAP.
 If you find more issues or have sugestions you can open open an issue.
-## [0.3] - 2024-08-07
+## Changelog
+All notable changes to this project will be documented in this file.
+
+### [0.3] - 2024-08-07
   
 In this version I added asynchronous task for the norminette so there won't be a slowdown
  
-### Fixed
+#### Fixed
 On the previous version the toggle wasn't working properly because it wasn't clearning the diagnostics after running the command.
 Still doesn't Work in 42 yet.
 
-## [0.2] - 2024-08-06
+### [0.2] - 2024-08-06
   
 In this version I added asynchronous task for the norminette so there won't be a slowdown
  
-### Changed
+#### Changed
 - Added [Plenary](https://github.com/nvim-lua/plenary.nvim) for async task for norminette. 
 
-## [0.1] - 2024-08-28
+### [0.1] - 2024-08-28
  
 ### Added
    
-This is the first Version, it's working outside the 42's Computers.
+- This is the first Version, it's working outside the 42's Computers.
