@@ -10,7 +10,7 @@ At the moment only possible to install with packer(not rigorly tested) and with 
 
 ### Packer
 
-```
+```lua
 use {
     'MrSloth-dev/42-NorminetteNvim',
     requires = {'nvim-lua/plenary.nvim'},
@@ -19,7 +19,7 @@ use {
 ```
 ### Lazy.nvim
 
-```
+```lua
 {
 	"MrSloth-dev/42-NorminetteNvim",
 	dependencies = { "nvim-lua/plenary.nvim" },
