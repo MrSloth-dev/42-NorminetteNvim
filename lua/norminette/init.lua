@@ -88,6 +88,7 @@ function M.setup(opts)
 			opts[k] = v
 		end
 	end
+	M.auto_run = opts.auto_run
 	if opts.auto_run then
 		vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold" }, {
 			pattern = { "*.c", "*.h" },
