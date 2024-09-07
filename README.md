@@ -34,6 +34,9 @@ use {
 
 ## Usage
 
+You have 2 two ways of working with the plugin, with a toggle `<leader>n` or with auto_run enable `auto_run = true`
+Notice that you can change the keybind to your liking.
+
 By default the plugin is running on a asynchronous process to prevent slowdowns. But if you find the constant errors popping up or notice a slowdown, you can disable by making auto_run = false.
 
 You can also run the command `:Norminette`
@@ -43,3 +46,7 @@ Tip: To open a split with the quickfix list you can use a functionality of neovi
 vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostic [Q]uickfix list" })
 ```
 This way you only need to press `<leader>q` and the split opens automatically.
+## Issues
+
+At the moment this plugin isn't working on 42's PCs maybe due to the location of the norminette binary. I will fix this ASAP.
+If you find more issues or have sugestions you can open open an issue.
