@@ -12,9 +12,14 @@ It only works for `.c` and `.h` files.
 
 ```
 use {
-    'MrSloth-dev/42-NorminetteNvim',
-    requires = {'nvim-lua/plenary.nvim'},
-    config = function() require('norminette').setup() end
+    "MrSloth-dev/42-NorminetteNvim",
+    requires = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" },
+    config = function()
+        require("norminette").setup({
+            keybind = "<leader>n",
+            diagnostic_color = "#00ff00",
+        })
+    end,
 }
 ```
 
