@@ -1,10 +1,10 @@
 local M = {}
 
-M.version = "0.3"
+M.version = "0.4"
 
-M.dependencies = { "nvim-lua/plenary.nvim" }
-
-M.auto_run = false
+M.dependencies = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" }
+M.namespace = vim.api.nvim_create_namespace("norminette")
+M.toggle_state = false
 
 local has_plenary, async = pcall(require, "plenary.async")
 if not has_plenary then
@@ -62,10 +62,48 @@ local function run_norminette_check(bufnr, namespace)
 	end)
 end
 
+local function update_status()
+	local icons_ok, icons = pcall(require, "mini.icons")
+	if not icons_ok then
+		error("This plugin requires mini.icons. Please install it to use this plugin.")
+		return
+	end
+
+	local icon = icons.get("filetype", "nginx")
+	if M.toggle_state then
+		vim.api.nvim_set_hl(0, "NorminetteStatus", { fg = "#00ff00", bold = true })
+		vim.opt.statusline:append("%#NorminetteStatus#")
+		vim.opt.statusline:append(" " .. icon .. " ")
+		vim.opt.statusline:append("%*")
+	else
+		vim.opt.statusline = vim.opt.statusline:get():gsub("%#NorminetteStatus#%s*%" .. icon .. "%s*%%*", "")
+	end
+end
+
+local function toggle_norminette()
+	local bufnr = vim.api.nvim_get_current_buf()
+	M.toggle_state = not M.toggle_state
+	if M.toggle_state then
+		vim.api.nvim_create_autocmd("CursorHold", {
+			pattern = { "*.c", "*.h" },
+			callback = function()
+				run_norminette_check(bufnr, M.namespace)
+			end,
+			group = vim.api.nvim_create_augroup("NorminetteAutoCheck", { clear = true }),
+		})
+		print("NorminetteAutoCheck enable")
+	else
+		vim.api.nvim_clear_autocmds({ group = "NorminetteAutoCheck" })
+		clear_diagnostics(M.namespace, bufnr)
+		print("NorminetteAutoCheck disable")
+	end
+	update_status()
+end
+
 M.run_norminette = async.void(function()
 	local bufnr = vim.api.nvim_get_current_buf()
 	local namespace = vim.api.nvim_create_namespace("norminette")
-	if M.auto_run then
+	if M.toggle_state then
 		run_norminette_check(bufnr, namespace)
 	else
 		if diagnostics_exist(namespace, bufnr) then
@@ -79,27 +117,34 @@ end)
 function M.setup(opts)
 	opts = opts or {}
 	local default_opts = {
-		auto_run = false,
 		keybind = "<leader>n",
+		diagnostic_color = "#00ff00",
 	}
 	for k, v in pairs(default_opts) do
 		if opts[k] == nil then
 			opts[k] = v
 		end
 	end
-	M.auto_run = opts.auto_run
-	if opts.auto_run then
-		vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold" }, {
-			pattern = { "*.c", "*.h" },
-			callback = M.run_norminette,
-		})
-	end
-	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
-	if opts.keybind then
-		vim.keymap.set("n", opts.keybind, M.run_norminette, { noremap = true, silent = true })
-	end
-end
 
-M.setup()
+	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
+
+	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
+
+	if opts.keybind then
+		vim.keymap.set("n", opts.keybind, toggle_norminette, { noremap = true, silent = true })
+	end
+	vim.diagnostic.config({
+		virtual_text = {
+			format = function(diagnostic)
+				if diagnostic.namespace == M.namespace then
+					return string.format("%s", diagnostic.message)
+				end
+				return diagnostic.message
+			end,
+			prefix = "●",
+			hl_group = "NorminetteDiagnostic",
+		},
+	}, M.namespace)
+end
 
 return M

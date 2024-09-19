@@ -25,12 +25,13 @@ use {
 ```
 {
 	"MrSloth-dev/42-NorminetteNvim",
-	dependencies = { "nvim-lua/plenary.nvim" },
+	dependencies = { "nvim-lua/plenary.nvim" , "echasnovski/mini.icons"},
+	dir = "~/Projects/42-NorminetteNvim/",
 	config = function()
-	require("norminette").setup({
-	auto_run = true,
-	keybind = "<leader>n",
-	})
+		require("norminette").setup({
+			keybind = "<leader>n",
+			diagnost_color = "#00ff00",
+		})
 	end,
 },
 ```
@@ -40,15 +41,13 @@ use {
 
 - [Norminette](https://github.com/42School/norminette)
 - [Plenary.nvim](https://github.com/nvim-lua/plenary.nvim) for async.
+- [mini.icons](https://github.com/echasnovski/mini.icons) for toggle icon.
 
 ## Usage
 
-You have 2 two ways of working with the plugin, with a toggle `<leader>n` or with auto_run enable `auto_run = true`
-Notice that you can change the keybind to your liking.
+You can activate the toggle two ways : `:Norminette` or using the `<leader>n`, notice that you can change the keybind to your liking.
 
-By default the plugin is running on a asynchronous process to prevent slowdowns. But if you find the constant errors popping up or notice a slowdown, you can disable by making auto_run = false.
-
-You can also run the command `:Norminette`
+By default the plugin is running on a asynchronous process to prevent slowdowns. But if you find the constant errors popping up or notice a slowdown, try to disable it.
 
 Tip: To open a split with the quickfix list you can use a functionality of neovim and assign it to a keybind like
 ```
@@ -59,14 +58,25 @@ This way you only need to press `<leader>q` and the split opens automatically.
 
 ## Known Issues
 
-- [ ] At the moment this plugin isn't working on 42's PCs maybe due to the location of the norminette binary. I will fix this ASAP.<br><br>
+- This plugin isn't working on 42's PCs through the flatpak.
+
 To report a bug or ask for a feature, please open a [Github issue](https://github.com/MrSloth-dev/42-NorminetteNvim/issues/new)
 <br>
 
 ## Changelog
 All notable changes to this project will be documented in this file.
 
-### [0.3] - 2024-08-07
+### [0.4] - 2024-09-19
+
+#### Changed
+- Reworked the way that the plugin works, now it's a toggle that you can turn on and [off](https://www.youtube.com/watch?v=p85xwZ_OLX0).
+- Changed the bullet point in errors.
+
+#### Added
+- Symbol  in statusline to see if the toggle is on or off. (helps debugging)
+- Added diagnostic_color, not working (yet).
+
+### [0.3] - 2024-09-07
   
 In this version I added asynchronous task for the norminette so there won't be a slowdown
  
@@ -74,7 +84,7 @@ In this version I added asynchronous task for the norminette so there won't be a
 On the previous version the toggle wasn't working properly because it wasn't clearning the diagnostics after running the command.
 Still doesn't Work in 42 yet.
 
-### [0.2] - 2024-08-06
+### [0.2] - 2024-09-06
   
 In this version I added asynchronous task for the norminette so there won't be a slowdown
  
