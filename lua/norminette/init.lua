@@ -42,11 +42,6 @@ local function clear_diagnostics(namespace, bufnr)
 	vim.diagnostic.reset(namespace, bufnr)
 end
 
-local function diagnostics_exist(namespace, bufnr)
-	local diagnostics = vim.diagnostic.get(bufnr, { namespace = namespace })
-	return #diagnostics > 0
-end
-
 local function run_norminette_check(bufnr, namespace)
 	vim.cmd("write")
 	local filename = vim.api.nvim_buf_get_name(bufnr)
@@ -80,10 +75,62 @@ local function update_status()
 	end
 end
 
+local function correct_filetype()
+	local file_type = vim.bo.filetype
+	return file_type == "c" or file_type == "cpp" -- h is identified with cpp... idk why
+end
+
+local function get_function_size(bufnr, lnum)
+	local start_line = lnum
+	local end_line = lnum
+	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+	local brace_count = 0
+	local in_function = false
+
+	for i = lnum, 1, -1 do
+		if lines[i]:match("{$") then
+			brace_count = 1
+			start_line = i
+			in_function = true
+			break
+		end
+	end
+
+	if in_function then
+		for i = start_line - 1, #lines do
+			local line = lines[i]
+			brace_count = brace_count + select(2, line:gsub("{", "")) - select(2, line:gsub("}", ""))
+			if brace_count == -1 then
+				end_line = i
+				break
+			end
+		end
+	end
+	return end_line - start_line
+end
+
+local function update_function_sizes(bufnr)
+	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+	for i, line in ipairs(lines) do
+		if line:match("^%w+%s+[%w_*]+%s*%b()$") then
+			local size = get_function_size(bufnr, i)
+			vim.api.nvim_buf_set_extmark(bufnr, M.namespace, i - 1, 0, {
+				virt_text = { { "Size :" .. size .. "lines", "Comment" } },
+				virt_text_pos = "eol",
+			})
+		end
+	end
+end
+
 local function toggle_norminette()
+	if not correct_filetype() then
+		print("Norminette only runs in .c or .h files")
+		return
+	end
 	local bufnr = vim.api.nvim_get_current_buf()
 	M.toggle_state = not M.toggle_state
 	if M.toggle_state then
+		update_function_sizes(bufnr)
 		vim.api.nvim_create_autocmd("CursorHold", {
 			pattern = { "*.c", "*.h" },
 			callback = function()
@@ -94,25 +141,13 @@ local function toggle_norminette()
 		print("NorminetteAutoCheck enable")
 	else
 		vim.api.nvim_clear_autocmds({ group = "NorminetteAutoCheck" })
+		vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
+		print("autocmd clear")
 		clear_diagnostics(M.namespace, bufnr)
 		print("NorminetteAutoCheck disable")
 	end
 	update_status()
 end
-
-M.run_norminette = async.void(function()
-	local bufnr = vim.api.nvim_get_current_buf()
-	local namespace = vim.api.nvim_create_namespace("norminette")
-	if M.toggle_state then
-		run_norminette_check(bufnr, namespace)
-	else
-		if diagnostics_exist(namespace, bufnr) then
-			clear_diagnostics(namespace, bufnr)
-		else
-			run_norminette_check(bufnr, namespace)
-		end
-	end
-end)
 
 function M.setup(opts)
 	opts = opts or {}
@@ -128,7 +163,7 @@ function M.setup(opts)
 
 	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
 
-	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
+	vim.api.nvim_create_user_command("Norminette", toggle_norminette, {})
 
 	if opts.keybind then
 		vim.keymap.set("n", opts.keybind, toggle_norminette, { noremap = true, silent = true })
