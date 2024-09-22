@@ -56,7 +56,7 @@ local function run_norminette_check(bufnr, namespace)
 	end, function(output)
 		local diagnostics = parse_norminette_output(output)
 		vim.schedule(function()
-			vim.diagnostic.reset(namespace, bufnr)
+			-- vim.diagnostic.reset(namespace, bufnr)
 			vim.diagnostic.set(namespace, bufnr, diagnostics)
 		end)
 	end)
@@ -80,10 +80,63 @@ local function update_status()
 	end
 end
 
+local function correct_filetype()
+	local file_type = vim.bo.filetype
+	return file_type == "c" or file_type == "cpp" -- h is identified with cpp... idk why
+end
+
+local function get_function_size(bufnr, lnum)
+	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+	local start_line = lnum
+	local end_line = lnum
+	local brace_count = 0
+	local found_opening_brace = false
+
+	-- Find the opening brace
+	for i = lnum, #lines do
+		local line = lines[i]
+		if line:match("{") then
+			start_line = i + 1 -- Start counting from the line after the opening brace
+			found_opening_brace = true
+			brace_count = 1
+			break
+		end
+	end
+
+	if found_opening_brace then
+		-- Count lines until we find the closing brace
+		for i = start_line, #lines do
+			local line = lines[i]
+			brace_count = brace_count + select(2, line:gsub("{", "")) - select(2, line:gsub("}", ""))
+			if brace_count == 0 then
+				end_line = i - 1 -- Don't include the closing brace line
+				break
+			end
+		end
+	end
+
+	return math.max(0, end_line - start_line + 1) -- Ensure we don't return negative values
+end
+
+local function update_function_sizes(bufnr)
+	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+	for i, line in ipairs(lines) do
+		-- Regex to catch function declarations
+		if line:match("^%w*%s*[%w_*]+%s+[%w_*]+%s*%b()%s*$") then
+			local size = get_function_size(bufnr, i)
+			vim.api.nvim_buf_set_extmark(bufnr, M.namespace, i - 1, 0, {
+				virt_text = { { "Size: " .. size .. " lines", "Comment" } },
+				virt_text_pos = "eol",
+			})
+		end
+	end
+end
+
 local function toggle_norminette()
 	local bufnr = vim.api.nvim_get_current_buf()
 	M.toggle_state = not M.toggle_state
 	if M.toggle_state then
+		update_function_sizes(bufnr)
 		vim.api.nvim_create_autocmd("CursorHold", {
 			pattern = { "*.c", "*.h" },
 			callback = function()
