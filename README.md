@@ -31,11 +31,11 @@ use {
 {
 	"MrSloth-dev/42-NorminetteNvim",
 	dependencies = { "nvim-lua/plenary.nvim" , "echasnovski/mini.icons"},
-	dir = "~/Projects/42-NorminetteNvim/",
 	config = function()
 		require("norminette").setup({
 			keybind = "<leader>n",
 			diagnost_color = "#00ff00",
+			show_size = true,
 		})
 	end,
 },
@@ -70,6 +70,15 @@ To report a bug or ask for a feature, please open a [Github issue](https://githu
 
 ## Changelog
 All notable changes to this project will be documented in this file.
+
+### [0.5] - 2024-09-23
+
+#### Added
+- Now it can show how many lines are in functions!
+- An icon in right side of status bar to know if the plugin is activated or not. May not work with other status line other than the default, if requested, I'll make it work.
+
+#### Changed
+- To reduce the workload the event that activated the functions were altered from "CursorHold" to "{ "TextChanged", "TextChangedI" }", so the diagnostics update when it detect changes is text.
 
 ### [0.4] - 2024-09-19
 

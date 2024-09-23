@@ -141,14 +141,14 @@ local function toggle_norminette()
 	M.toggle_state = not M.toggle_state
 	if M.toggle_state then
 		if M.show_size then
-			vim.api.nvim_create_autocmd("CursorHold", {
+			vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
 				pattern = { "*.c", ".h" },
 				callback = function()
 					update_function_sizes(bufnr)
 				end,
 			})
 		end
-		vim.api.nvim_create_autocmd("CursorHold", {
+		vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
 			pattern = { "*.c", "*.h" },
 			callback = function()
 				run_norminette_check(bufnr, M.namespace)
@@ -158,8 +158,8 @@ local function toggle_norminette()
 		print("NorminetteAutoCheck enable")
 	else
 		vim.api.nvim_clear_autocmds({ group = "NorminetteAutoCheck" })
-		clear_diagnostics(M.namespace, bufnr)
 		vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
+		clear_diagnostics(M.namespace, bufnr)
 		print("NorminetteAutoCheck disable")
 	end
 	update_status()
