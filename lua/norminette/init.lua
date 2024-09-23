@@ -1,6 +1,6 @@
 local M = {}
 
-M.version = "0.4"
+M.version = "0.5"
 
 M.dependencies = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" }
 M.namespace = vim.api.nvim_create_namespace("norminette")
@@ -48,7 +48,10 @@ local function diagnostics_exist(namespace, bufnr)
 end
 
 local function run_norminette_check(bufnr, namespace)
-	vim.cmd("write")
+	if vim.bo.modified and not vim.bo.readonly and vim.fn.expand("%") ~= "" and vim.bo.buftype == "" then
+		vim.api.nvim_command("silent update")
+	end
+	-- vim.cmd("write")
 	local filename = vim.api.nvim_buf_get_name(bufnr)
 	async.run(function()
 		local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
@@ -56,7 +59,7 @@ local function run_norminette_check(bufnr, namespace)
 	end, function(output)
 		local diagnostics = parse_norminette_output(output)
 		vim.schedule(function()
-			-- vim.diagnostic.reset(namespace, bufnr)
+			vim.diagnostic.reset(namespace, bufnr)
 			vim.diagnostic.set(namespace, bufnr, diagnostics)
 		end)
 	end)
@@ -119,6 +122,7 @@ local function get_function_size(bufnr, lnum)
 end
 
 local function update_function_sizes(bufnr)
+	vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 	for i, line in ipairs(lines) do
 		-- Regex to catch function declarations
@@ -136,7 +140,14 @@ local function toggle_norminette()
 	local bufnr = vim.api.nvim_get_current_buf()
 	M.toggle_state = not M.toggle_state
 	if M.toggle_state then
-		update_function_sizes(bufnr)
+		if M.show_size then
+			vim.api.nvim_create_autocmd("CursorHold", {
+				pattern = { "*.c", ".h" },
+				callback = function()
+					update_function_sizes(bufnr)
+				end,
+			})
+		end
 		vim.api.nvim_create_autocmd("CursorHold", {
 			pattern = { "*.c", "*.h" },
 			callback = function()
@@ -148,6 +159,7 @@ local function toggle_norminette()
 	else
 		vim.api.nvim_clear_autocmds({ group = "NorminetteAutoCheck" })
 		clear_diagnostics(M.namespace, bufnr)
+		vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
 		print("NorminetteAutoCheck disable")
 	end
 	update_status()
@@ -172,20 +184,22 @@ function M.setup(opts)
 	local default_opts = {
 		keybind = "<leader>n",
 		diagnostic_color = "#00ff00",
+		show_size = true,
 	}
-	for k, v in pairs(default_opts) do
-		if opts[k] == nil then
-			opts[k] = v
+	for key, value in pairs(default_opts) do
+		if opts[key] == nil then
+			opts[key] = value
 		end
 	end
 
-	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
-
-	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
-
+	M.show_size = opts.show_size
 	if opts.keybind then
 		vim.keymap.set("n", opts.keybind, toggle_norminette, { noremap = true, silent = true })
 	end
+
+	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
+	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
+
 	vim.diagnostic.config({
 		virtual_text = {
 			format = function(diagnostic)
