@@ -5,6 +5,7 @@ M.version = "0.5"
 M.dependencies = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" }
 M.namespace = vim.api.nvim_create_namespace("norminette")
 M.toggle_state = false
+M.show_size = true
 
 local has_plenary, async = pcall(require, "plenary.async")
 if not has_plenary then

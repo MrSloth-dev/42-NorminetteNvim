@@ -18,6 +18,7 @@ use {
         require("norminette").setup({
             keybind = "<leader>n",
             diagnostic_color = "#00ff00",
+	    show_size = true,
         })
     end,
 }
@@ -31,11 +32,11 @@ use {
 {
 	"MrSloth-dev/42-NorminetteNvim",
 	dependencies = { "nvim-lua/plenary.nvim" , "echasnovski/mini.icons"},
-	dir = "~/Projects/42-NorminetteNvim/",
 	config = function()
 		require("norminette").setup({
 			keybind = "<leader>n",
 			diagnost_color = "#00ff00",
+			show_size = true,
 		})
 	end,
 },
@@ -44,6 +45,7 @@ use {
 
 ## Dependecies
 
+- [Neovim >= 0.10](https://neovim.io/)
 - [Norminette](https://github.com/42School/norminette)
 - [Plenary.nvim](https://github.com/nvim-lua/plenary.nvim) for async.
 - [mini.icons](https://github.com/echasnovski/mini.icons) for toggle icon.
@@ -68,8 +70,26 @@ This way you only need to press `<leader>q` and the split opens automatically.
 To report a bug or ask for a feature, please open a [Github issue](https://github.com/MrSloth-dev/42-NorminetteNvim/issues/new)
 <br>
 
+## Roadmap
+
+- [ ] Auto-formatter
+- [ ] Improve performance
+- [ ] Detect functions through tree-sitter
+
 ## Changelog
 All notable changes to this project will be documented in this file.
+
+### [0.5] - 2024-09-25
+
+#### Added
+- Now it can show Function size as messages
+
+#### Changed
+- The way that the plugin runs while the toggle in on to improve performance and reduce latency.
+- The way that the plugin saves, to improve performance and reduce disk usage.
+
+#### BugFix
+- There was an error when the plugin was called through `:Norminette` that was calling an old function.
 
 ### [0.4] - 2024-09-19
 
@@ -78,7 +98,7 @@ All notable changes to this project will be documented in this file.
 - Changed the bullet point in errors.
 
 #### Added
-- Symbol  in statusline to see if the toggle is on or off. (helps debugging)
+- Symbol  in statusline to see if the toggle is on or off.
 - Added diagnostic_color, not working (yet).
 
 ### [0.3] - 2024-09-07
