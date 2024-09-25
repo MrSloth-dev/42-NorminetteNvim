@@ -74,6 +74,7 @@ To report a bug or ask for a feature, please open a [Github issue](https://githu
 
 - [ ] Auto-formatter
 - [ ] Improve performance
+- [ ] Integrate with statusline other than default
 - [ ] Detect functions through tree-sitter
 
 ## Changelog
