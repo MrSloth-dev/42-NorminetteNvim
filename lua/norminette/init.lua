@@ -46,7 +46,6 @@ local function run_norminette_check(bufnr, namespace)
 	if vim.bo.modified and not vim.bo.readonly and vim.fn.expand("%") ~= "" and vim.bo.buftype == "" then
 		vim.api.nvim_command("silent update")
 	end
-	-- vim.cmd("write")
 	local filename = vim.api.nvim_buf_get_name(bufnr)
 	async.run(function()
 		local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
@@ -184,7 +183,7 @@ function M.setup(opts)
 	end
 
 	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
-	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
+	vim.api.nvim_create_user_command("Norminette", run_norminette_check, {})
 
 	vim.diagnostic.config({
 		virtual_text = {
