@@ -1,6 +1,6 @@
 local M = {}
 
-M.version = "0.4"
+M.version = "0.5"
 
 M.dependencies = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" }
 M.namespace = vim.api.nvim_create_namespace("norminette")
@@ -43,7 +43,10 @@ local function clear_diagnostics(namespace, bufnr)
 end
 
 local function run_norminette_check(bufnr, namespace)
-	vim.cmd("write")
+	if vim.bo.modified and not vim.bo.readonly and vim.fn.expand("%") ~= "" and vim.bo.buftype == "" then
+		vim.api.nvim_command("silent update")
+	end
+	-- vim.cmd("write")
 	local filename = vim.api.nvim_buf_get_name(bufnr)
 	async.run(function()
 		local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
@@ -81,41 +84,46 @@ local function correct_filetype()
 end
 
 local function get_function_size(bufnr, lnum)
+	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 	local start_line = lnum
 	local end_line = lnum
-	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 	local brace_count = 0
-	local in_function = false
+	local found_opening_brace = false
 
-	for i = lnum, 1, -1 do
-		if lines[i]:match("{$") then
+	-- Find the opening brace
+	for i = lnum, #lines do
+		local line = lines[i]
+		if line:match("{") then
+			start_line = i + 1 -- Start counting from the line after the opening brace
+			found_opening_brace = true
 			brace_count = 1
-			start_line = i
-			in_function = true
 			break
 		end
 	end
 
-	if in_function then
-		for i = start_line - 1, #lines do
+	if found_opening_brace then
+		-- Count lines until we find the closing brace
+		for i = start_line, #lines do
 			local line = lines[i]
 			brace_count = brace_count + select(2, line:gsub("{", "")) - select(2, line:gsub("}", ""))
-			if brace_count == -1 then
-				end_line = i
+			if brace_count == 0 then
+				end_line = i - 1 -- Don't include the closing brace line
 				break
 			end
 		end
 	end
-	return end_line - start_line
+	return math.max(0, end_line - start_line + 1) -- Ensure we don't return negative values
 end
 
 local function update_function_sizes(bufnr)
+	vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 	for i, line in ipairs(lines) do
-		if line:match("^%w+%s+[%w_*]+%s*%b()$") then
+		-- Regex to catch function declarations
+		if line:match("^%w*%s*[%w_*]+%s+[%w_*]+%s*%b()%s*$") then
 			local size = get_function_size(bufnr, i)
 			vim.api.nvim_buf_set_extmark(bufnr, M.namespace, i - 1, 0, {
-				virt_text = { { "Size :" .. size .. "lines", "Comment" } },
+				virt_text = { { "Size: " .. size .. " lines", "Comment" } },
 				virt_text_pos = "eol",
 			})
 		end
@@ -130,7 +138,14 @@ local function toggle_norminette()
 	local bufnr = vim.api.nvim_get_current_buf()
 	M.toggle_state = not M.toggle_state
 	if M.toggle_state then
-		update_function_sizes(bufnr)
+		if M.show_size then
+			vim.api.nvim_create_autocmd("CursorHold", {
+				pattern = { "*.c", ".h" },
+				callback = function()
+					update_function_sizes(bufnr)
+				end,
+			})
+		end
 		vim.api.nvim_create_autocmd("CursorHold", {
 			pattern = { "*.c", "*.h" },
 			callback = function()
@@ -144,6 +159,7 @@ local function toggle_norminette()
 		vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
 		print("autocmd clear")
 		clear_diagnostics(M.namespace, bufnr)
+		vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
 		print("NorminetteAutoCheck disable")
 	end
 	update_status()
@@ -154,20 +170,22 @@ function M.setup(opts)
 	local default_opts = {
 		keybind = "<leader>n",
 		diagnostic_color = "#00ff00",
+		show_size = true,
 	}
-	for k, v in pairs(default_opts) do
-		if opts[k] == nil then
-			opts[k] = v
+	for key, value in pairs(default_opts) do
+		if opts[key] == nil then
+			opts[key] = value
 		end
 	end
 
-	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
-
-	vim.api.nvim_create_user_command("Norminette", toggle_norminette, {})
-
+	M.show_size = opts.show_size
 	if opts.keybind then
 		vim.keymap.set("n", opts.keybind, toggle_norminette, { noremap = true, silent = true })
 	end
+
+	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
+	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
+
 	vim.diagnostic.config({
 		virtual_text = {
 			format = function(diagnostic)
