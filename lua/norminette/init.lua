@@ -83,83 +83,69 @@ local function update_status()
 	end
 end
 
-local function correct_filetype()
-	local file_type = vim.bo.filetype
-	return file_type == "c" or file_type == "cpp" -- h is identified with cpp... idk why
-end
-
-local function get_function_size(bufnr, lnum)
-	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-	local start_line = lnum
-	local end_line = lnum
-	local brace_count = 0
-	local found_opening_brace = false
-
-	-- Find the opening brace
-	for i = lnum, #lines do
-		local line = lines[i]
-		if line:match("{") then
-			start_line = i + 1 -- Start counting from the line after the opening brace
-			found_opening_brace = true
-			brace_count = 1
-			break
-		end
-	end
-
-	if found_opening_brace then
-		-- Count lines until we find the closing brace
-		for i = start_line, #lines do
-			local line = lines[i]
-			brace_count = brace_count + select(2, line:gsub("{", "")) - select(2, line:gsub("}", ""))
-			if brace_count == 0 then
-				end_line = i - 1 -- Don't include the closing brace line
-				break
-			end
-		end
-	end
-
-	return math.max(0, end_line - start_line + 1) -- Ensure we don't return negative values
-end
-
 local function update_function_sizes(bufnr)
 	vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
-	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-	for i, line in ipairs(lines) do
-		-- Regex to catch function declarations
-		if line:match("^%w*%s*[%w_*]+%s+[%w_*]+%s*%b()%s*$") then
-			local size = get_function_size(bufnr, i)
-			vim.api.nvim_buf_set_extmark(bufnr, M.namespace, i - 1, 0, {
-				virt_text = { { "Size: " .. size .. " lines", "Comment" } },
-				virt_text_pos = "eol",
-			})
-		end
+	local parser = vim.treesitter.get_parser(bufnr, "c")
+	if not parser then
+		print("Failed Parsing")
+		return
 	end
+	local tree = parser:parse()[1]
+	local root = tree:root()
+
+	local query = vim.treesitter.query.parse(
+		"c",
+		[[
+        (function_definition) @declaration
+    ]]
+	)
+	for _, node in query:iter_captures(root, bufnr, 0, -1) do
+		local start_row, _, end_row, _ = node:range()
+		local size = end_row - start_row - 2
+
+		vim.api.nvim_buf_set_extmark(bufnr, M.namespace, start_row, 0, {
+			virt_text = { { "Size: " .. size .. " lines", "Comment" } },
+			virt_text_pos = "eol",
+		})
+	end
+end
+
+local function setup_autocmds_and_run(bufnr)
+	if M.show_size then
+		update_function_sizes(bufnr)
+		run_norminette_check(bufnr, M.namespace)
+		vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
+			pattern = { "*.c", ".h" },
+			callback = function()
+				update_function_sizes(bufnr)
+			end,
+			group = vim.api.nvim_create_augroup("NorminetteFunctionSize", { clear = true }),
+		})
+	end
+	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufEnter", "BufWritePost" }, {
+		pattern = { "*.c", "*.h" },
+		callback = function()
+			run_norminette_check(bufnr, M.namespace)
+		end,
+		group = vim.api.nvim_create_augroup("NorminetteAutoCheck", { clear = true }),
+	})
+end
+
+local function clear_autocmds_and_messages(bufnr)
+	vim.api.nvim_clear_autocmds({ group = "NorminetteFunctionSize" })
+	vim.api.nvim_clear_autocmds({ group = "NorminetteAutoCheck" })
+	vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
+	clear_diagnostics(M.namespace, bufnr)
 end
 
 local function toggle_norminette()
 	local bufnr = vim.api.nvim_get_current_buf()
 	M.toggle_state = not M.toggle_state
 	if M.toggle_state then
-		if M.show_size then
-			vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-				pattern = { "*.c", ".h" },
-				callback = function()
-					update_function_sizes(bufnr)
-				end,
-			})
-		end
-		vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-			pattern = { "*.c", "*.h" },
-			callback = function()
-				run_norminette_check(bufnr, M.namespace)
-			end,
-			group = vim.api.nvim_create_augroup("NorminetteAutoCheck", { clear = true }),
-		})
+		setup_autocmds_and_run(bufnr)
 		print("NorminetteAutoCheck enable")
 	else
-		vim.api.nvim_clear_autocmds({ group = "NorminetteAutoCheck" })
-		vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
-		clear_diagnostics(M.namespace, bufnr)
+		clear_autocmds_and_messages(bufnr)
 		print("NorminetteAutoCheck disable")
 	end
 	update_status()
@@ -212,6 +198,25 @@ function M.setup(opts)
 			hl_group = "NorminetteDiagnostic",
 		},
 	}, M.namespace)
+
+	vim.api.nvim_create_autocmd("BufEnter", {
+		pattern = { "*.c", "*.h" },
+		callback = function()
+			if M.toggle_state then
+				M.run_norminette()
+			end
+		end,
+		group = vim.api.nvim_create_augroup("NorminetteInitialUpdate", { clear = true }),
+	})
+	vim.api.nvim_create_autocmd("BufEnter", {
+		pattern = { "*.c", "*.h" },
+		callback = function(ev)
+			if M.toggle_state and M.show_size then
+				update_function_sizes(ev.buf)
+			end
+		end,
+		group = vim.api.nvim_create_augroup("NorminetteInitialUpdate", { clear = true }),
+	})
 end
 
 return M
