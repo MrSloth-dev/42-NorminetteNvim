@@ -18,6 +18,7 @@ use {
         require("norminette").setup({
             keybind = "<leader>n",
             diagnostic_color = "#00ff00",
+	    show_size = true,
         })
     end,
 }
@@ -44,6 +45,7 @@ use {
 
 ## Dependecies
 
+- [Neovim >= 0.10](https://neovim.io/)
 - [Norminette](https://github.com/42School/norminette)
 - [Plenary.nvim](https://github.com/nvim-lua/plenary.nvim) for async.
 - [mini.icons](https://github.com/echasnovski/mini.icons) for toggle icon.
@@ -68,17 +70,33 @@ This way you only need to press `<leader>q` and the split opens automatically.
 To report a bug or ask for a feature, please open a [Github issue](https://github.com/MrSloth-dev/42-NorminetteNvim/issues/new)
 <br>
 
+## Roadmap
+
+- [x] Detect functions through tree-sitter
+- [x] Improve performance
+- [ ] Integrate with statusline other than default
+- [ ] Auto-formatter
+
 ## Changelog
 All notable changes to this project will be documented in this file.
 
-### [0.5] - 2024-09-23
+### [0.5.5] - 2024-09-30
+
+#### BugFix
+- Remade the function to calculate size, instead of Regex, now it uses [Neovim's TreeSitter](https://tree-sitter.github.io/tree-sitter/)
+- Plugin wasn't showing the errors when activated, as pretended.
+
+### [0.5] - 2024-09-25
 
 #### Added
-- Now it can show how many lines are in functions!
+- Now it can show Function size as messages
 - An icon in right side of status bar to know if the plugin is activated or not. May not work with other status line other than the default, if requested, I'll make it work.
 
 #### Changed
 - To reduce the workload the event that activated the functions were altered from "CursorHold" to "{ "TextChanged", "TextChangedI" }", so the diagnostics update when it detect changes is text.
+
+#### BugFix
+- There was an error when the plugin was called through `:Norminette` that was calling an old function.
 
 ### [0.4] - 2024-09-19
 
@@ -87,7 +105,7 @@ All notable changes to this project will be documented in this file.
 - Changed the bullet point in errors.
 
 #### Added
-- Symbol  in statusline to see if the toggle is on or off. (helps debugging)
+- Symbol  in statusline to see if the toggle is on or off.
 - Added diagnostic_color, not working (yet).
 
 ### [0.3] - 2024-09-07

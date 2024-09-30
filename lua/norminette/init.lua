@@ -5,6 +5,7 @@ M.version = "0.5"
 M.dependencies = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" }
 M.namespace = vim.api.nvim_create_namespace("norminette")
 M.toggle_state = false
+M.show_size = true
 
 local has_plenary, async = pcall(require, "plenary.async")
 if not has_plenary then
@@ -42,16 +43,10 @@ local function clear_diagnostics(namespace, bufnr)
 	vim.diagnostic.reset(namespace, bufnr)
 end
 
-local function diagnostics_exist(namespace, bufnr)
-	local diagnostics = vim.diagnostic.get(bufnr, { namespace = namespace })
-	return #diagnostics > 0
-end
-
 local function run_norminette_check(bufnr, namespace)
 	if vim.bo.modified and not vim.bo.readonly and vim.fn.expand("%") ~= "" and vim.bo.buftype == "" then
 		vim.api.nvim_command("silent update")
 	end
-	-- vim.cmd("write")
 	local filename = vim.api.nvim_buf_get_name(bufnr)
 	async.run(function()
 		local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
@@ -81,6 +76,11 @@ local function update_status()
 	else
 		vim.opt.statusline = vim.opt.statusline:get():gsub("%#NorminetteStatus#%s*%" .. icon .. "%s*%%*", "")
 	end
+end
+
+local function correct_filetype()
+	local file_type = vim.bo.filetype
+	return file_type == "c" or file_type == "cpp" -- h is identified with cpp... idk why
 end
 
 local function update_function_sizes(bufnr)
@@ -139,6 +139,10 @@ local function clear_autocmds_and_messages(bufnr)
 end
 
 local function toggle_norminette()
+	if not correct_filetype() then
+		print("Norminette only runs in .c or .h files")
+		return
+	end
 	local bufnr = vim.api.nvim_get_current_buf()
 	M.toggle_state = not M.toggle_state
 	if M.toggle_state then
@@ -150,20 +154,6 @@ local function toggle_norminette()
 	end
 	update_status()
 end
-
-M.run_norminette = async.void(function()
-	local bufnr = vim.api.nvim_get_current_buf()
-	local namespace = vim.api.nvim_create_namespace("norminette")
-	if M.toggle_state then
-		run_norminette_check(bufnr, namespace)
-	else
-		if diagnostics_exist(namespace, bufnr) then
-			clear_diagnostics(namespace, bufnr)
-		else
-			run_norminette_check(bufnr, namespace)
-		end
-	end
-end)
 
 function M.setup(opts)
 	opts = opts or {}
@@ -184,7 +174,7 @@ function M.setup(opts)
 	end
 
 	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
-	vim.api.nvim_create_user_command("Norminette", M.run_norminette, {})
+	vim.api.nvim_create_user_command("Norminette", run_norminette_check, {})
 
 	vim.diagnostic.config({
 		virtual_text = {
