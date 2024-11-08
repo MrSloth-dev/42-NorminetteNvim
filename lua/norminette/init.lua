@@ -174,7 +174,9 @@ function M.setup(opts)
 	end
 
 	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
-	vim.api.nvim_create_user_command("Norminette", run_norminette_check, {})
+	vim.api.nvim_create_user_command("NorminetteToggle", function()
+		toggle_norminette()
+	end, {})
 
 	vim.diagnostic.config({
 		virtual_text = {
