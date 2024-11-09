@@ -1,6 +1,6 @@
 local M = {}
 
-M.version = "0.5"
+M.version = "0.6"
 
 M.dependencies = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" }
 M.namespace = vim.api.nvim_create_namespace("norminette")
@@ -111,17 +111,6 @@ local function update_function_sizes(bufnr)
 end
 
 local function setup_autocmds_and_run(bufnr)
-	if M.show_size then
-		update_function_sizes(bufnr)
-		run_norminette_check(bufnr, M.namespace)
-		vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
-			pattern = { "*.c", ".h" },
-			callback = function()
-				update_function_sizes(bufnr)
-			end,
-			group = vim.api.nvim_create_augroup("NorminetteFunctionSize", { clear = true }),
-		})
-	end
 	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufEnter", "BufWritePost" }, {
 		pattern = { "*.c", "*.h" },
 		callback = function()
@@ -131,11 +120,28 @@ local function setup_autocmds_and_run(bufnr)
 	})
 end
 
+local function setup_size_autocmd(bufnr)
+	update_function_sizes(bufnr)
+	run_norminette_check(bufnr, M.namespace)
+	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufEnter", "BufWritePost" }, {
+		pattern = { "*.c", ".h" },
+		callback = function()
+			update_function_sizes(bufnr)
+		end,
+		group = vim.api.nvim_create_augroup("NorminetteFunctionSize", { clear = true }),
+	})
+end
+
 local function clear_autocmds_and_messages(bufnr)
-	vim.api.nvim_clear_autocmds({ group = "NorminetteFunctionSize" })
 	vim.api.nvim_clear_autocmds({ group = "NorminetteAutoCheck" })
-	vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
 	clear_diagnostics(M.namespace, bufnr)
+end
+
+local function clear_function_sizes(bufnr)
+	if pcall(vim.api.nvim_get_autocmds, { group = "NorminetteFunctionSize" }) then
+		vim.api.nvim_clear_autocmds({ group = "NorminetteFunctionSize" })
+	end
+	vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
 end
 
 local function toggle_norminette()
@@ -155,10 +161,27 @@ local function toggle_norminette()
 	update_status()
 end
 
+local function toggle_size()
+	if not correct_filetype() then
+		print("Norminette only runs in .c or .h files")
+		return
+	end
+	local bufnr = vim.api.nvim_get_current_buf()
+	M.show_size = not M.show_size
+	if M.show_size then
+		setup_size_autocmd(bufnr)
+		print("Norminette show_size enable")
+	else
+		clear_function_sizes(bufnr)
+		print("Norminette show_size disable")
+	end
+end
+
 function M.setup(opts)
 	opts = opts or {}
 	local default_opts = {
-		keybind = "<leader>n",
+		norm_keybind = "<leader>n",
+		size_keybind = "<leader>ns",
 		diagnostic_color = "#00ff00",
 		show_size = true,
 	}
@@ -169,13 +192,19 @@ function M.setup(opts)
 	end
 
 	M.show_size = opts.show_size
-	if opts.keybind then
-		vim.keymap.set("n", opts.keybind, toggle_norminette, { noremap = true, silent = true })
+	if opts.norm_keybind then
+		vim.keymap.set("n", opts.norm_keybind, toggle_norminette, { noremap = true, silent = true })
 	end
 
+	if opts.size_keybind then
+		vim.keymap.set("n", opts.size_keybind, toggle_size, { noremap = true, silent = true })
+	end
 	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
 	vim.api.nvim_create_user_command("NorminetteToggle", function()
 		toggle_norminette()
+	end, {})
+	vim.api.nvim_create_user_command("NorminetteSizeToggle", function()
+		toggle_size()
 	end, {})
 
 	vim.diagnostic.config({
@@ -200,10 +229,10 @@ function M.setup(opts)
 		end,
 		group = vim.api.nvim_create_augroup("NorminetteInitialUpdate", { clear = true }),
 	})
-	vim.api.nvim_create_autocmd("BufEnter", {
+	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufEnter", "BufWritePost" }, {
 		pattern = { "*.c", "*.h" },
 		callback = function(ev)
-			if M.toggle_state and M.show_size then
+			if M.show_size then
 				update_function_sizes(ev.buf)
 			end
 		end,

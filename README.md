@@ -10,15 +10,16 @@ It only works for `.c` and `.h` files.
 	
 <summary> <b>📦 Packer 📦</b></summary>
 
-```
+``` lua
 use {
     "MrSloth-dev/42-NorminetteNvim",
     requires = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" },
     config = function()
         require("norminette").setup({
-            keybind = "<leader>n",
+	    norm_keybind = "<leader>n",
+	    size_keybind = "<leader>ns",
             diagnostic_color = "#00ff00",
-	    show_size = true,
+            show_size = true,
         })
     end,
 }
@@ -28,13 +29,14 @@ use {
 <details>
 <summary><b>💤 Lazy.nvim 💤</b></summary>
 
-```
+``` lua
 {
 	"MrSloth-dev/42-NorminetteNvim",
 	dependencies = { "nvim-lua/plenary.nvim" , "echasnovski/mini.icons"},
 	config = function()
 		require("norminette").setup({
-			keybind = "<leader>n",
+			norm_keybind = "<leader>n",
+			size_keybind = "<leader>ns",
 			diagnost_color = "#00ff00",
 			show_size = true,
 		})
@@ -46,17 +48,20 @@ use {
 ## Dependecies
 
 - [Neovim >= 0.10](https://neovim.io/)
-- [Norminette](https://github.com/42School/norminette)
+- [Norminette (doh)](https://github.com/42School/norminette)
 - [Plenary.nvim](https://github.com/nvim-lua/plenary.nvim) for async.
 - [mini.icons](https://github.com/echasnovski/mini.icons) for toggle icon.
 
 ## Usage
 
-You can activate the toggle two ways : `:Norminette` or using the `<leader>n`, notice that you can change the keybind to your liking.
+You can activate the toggle for Norm Errors in two ways : `:NorminetteToggle` or using the `<leader>n`, notice that you can change the keybind to your liking.
+
+Along with the Norm you can also check function sizes with `:NorminetteSizeToggle` using the `<leader>ns`.
 
 By default the plugin is running on a asynchronous process to prevent slowdowns. But if you find the constant errors popping up or notice a slowdown, try to disable it.
 
-Tip: To open a split with the quickfix list you can use a functionality of neovim and assign it to a keybind like
+### Tip
+To open a split with the quickfix list you can use a functionality of neovim and assign it to a keybind like
 ```
 vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagnostic [Q]uickfix list" })
 ```
@@ -74,11 +79,23 @@ To report a bug or ask for a feature, please open a [Github issue](https://githu
 
 - [x] Detect functions through tree-sitter
 - [x] Improve performance
-- [ ] Integrate with statusline other than default
-- [ ] Auto-formatter
+- [ ] Auto-formatter for some of the errors.
 
 ## Changelog
 All notable changes to this project will be documented in this file.
+
+### [0.6] - 2024-11-09
+
+#### Added
+- Now you can toggle Function Sizes with `:NorminetteSizeToggle` or keybind (default `<leader>ns`)
+
+#### Changed
+- Showing Function size doesn't not depend if the Norminette diagnostics are turned on
+- Turned Norminette and Function Sizes into two separate Toggles so that you can choose which you want to turn on and off.
+- User Command `:Norminette` changed to `:NorminetteToggle`
+
+#### BugFix
+- There was an issue when Calling `:Norminette` that was calling a deprecated function
 
 ### [0.5.5] - 2024-09-30
 
