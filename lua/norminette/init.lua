@@ -115,10 +115,6 @@ local function clear_autocmds_and_messages()
 	clear_diagnostics(M.namespace, vim.api.nvim_get_current_buf())
 end
 
-local function setup_autocmds_and_run()
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
-		pattern = { "*.c", "*.h" },
-		callback = function()
 local function setup_clear_diagnostics_autocmd(bufnr)
 	vim.api.nvim_create_autocmd("BufLeave", {
 		pattern = { "*.c", "*.h" },
