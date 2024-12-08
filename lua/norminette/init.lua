@@ -119,6 +119,21 @@ local function setup_autocmds_and_run()
 	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
 		pattern = { "*.c", "*.h" },
 		callback = function()
+local function setup_clear_diagnostics_autocmd(bufnr)
+	vim.api.nvim_create_autocmd("BufLeave", {
+		pattern = { "*.c", "*.h" },
+		callback = function()
+			clear_diagnostics(M.namespace, bufnr)
+		end,
+		group = vim.api.nvim_create_augroup("NorminetteClearDiagnostics", { clear = true }),
+	})
+end
+
+local function setup_autocmds_and_run()
+	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
+		pattern = { "*.c", "*.h" },
+		callback = function()
+			setup_clear_diagnostics_autocmd(vim.api.nvim_get_current_buf())
 			if M.toggle_state then
 				run_norminette_check(vim.api.nvim_get_current_buf(), M.namespace)
 			else
@@ -127,6 +142,7 @@ local function setup_autocmds_and_run()
 		end,
 		group = vim.api.nvim_create_augroup("NorminetteAutoCheck", { clear = true }),
 	})
+	setup_clear_diagnostics_autocmd(vim.api.nvim_get_current_buf())
 	if M.toggle_state then
 		run_norminette_check(vim.api.nvim_get_current_buf(), M.namespace)
 	else
