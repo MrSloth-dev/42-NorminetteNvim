@@ -84,6 +84,11 @@ To report a bug or ask for a feature, please open a [Github issue](https://githu
 ## Changelog
 All notable changes to this project will be documented in this file.
 
+### [0.6.1] - 2024-12-08
+
+#### BugFix
+- There was an issue when changing buffers in splits and needed reactivation.
+
 ### [0.6] - 2024-11-09
 
 #### Added
@@ -97,7 +102,7 @@ All notable changes to this project will be documented in this file.
 #### BugFix
 - There was an issue when Calling `:Norminette` that was calling a deprecated function
 
-### [0.5.5] - 2024-09-30
+### [0.5.1] - 2024-09-30
 
 #### BugFix
 - Remade the function to calculate size, instead of Regex, now it uses [Neovim's TreeSitter](https://tree-sitter.github.io/tree-sitter/)

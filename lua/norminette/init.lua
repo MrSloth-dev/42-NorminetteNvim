@@ -1,6 +1,6 @@
 local M = {}
 
-M.version = "0.6"
+M.version = "0.6.1"
 
 M.dependencies = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" }
 M.namespace = vim.api.nvim_create_namespace("norminette")
@@ -44,7 +44,7 @@ local function clear_diagnostics(namespace, bufnr)
 end
 
 local function run_norminette_check(bufnr, namespace)
-	if vim.bo.modified and not vim.bo.readonly and vim.fn.expand("%") ~= "" and vim.bo.buftype == "" then
+	if not vim.bo.readonly and vim.fn.expand("%") ~= "" and vim.bo.buftype == "" then
 		vim.api.nvim_command("silent update")
 	end
 	local filename = vim.api.nvim_buf_get_name(bufnr)
@@ -110,31 +110,40 @@ local function update_function_sizes(bufnr)
 	end
 end
 
-local function setup_autocmds_and_run(bufnr)
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufEnter", "BufWritePost" }, {
+local function clear_autocmds_and_messages()
+	vim.api.nvim_clear_autocmds({ group = "NorminetteAutoCheck" })
+	clear_diagnostics(M.namespace, vim.api.nvim_get_current_buf())
+end
+
+local function setup_autocmds_and_run()
+	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
 		pattern = { "*.c", "*.h" },
 		callback = function()
-			run_norminette_check(bufnr, M.namespace)
+			if M.toggle_state then
+				run_norminette_check(vim.api.nvim_get_current_buf(), M.namespace)
+			else
+				clear_autocmds_and_messages()
+			end
 		end,
 		group = vim.api.nvim_create_augroup("NorminetteAutoCheck", { clear = true }),
 	})
+	if M.toggle_state then
+		run_norminette_check(vim.api.nvim_get_current_buf(), M.namespace)
+	else
+		clear_autocmds_and_messages()
+	end
 end
 
 local function setup_size_autocmd(bufnr)
 	update_function_sizes(bufnr)
 	run_norminette_check(bufnr, M.namespace)
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufEnter", "BufWritePost" }, {
+	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
 		pattern = { "*.c", ".h" },
 		callback = function()
 			update_function_sizes(bufnr)
 		end,
 		group = vim.api.nvim_create_augroup("NorminetteFunctionSize", { clear = true }),
 	})
-end
-
-local function clear_autocmds_and_messages(bufnr)
-	vim.api.nvim_clear_autocmds({ group = "NorminetteAutoCheck" })
-	clear_diagnostics(M.namespace, bufnr)
 end
 
 local function clear_function_sizes(bufnr)
@@ -149,13 +158,12 @@ local function toggle_norminette()
 		print("Norminette only runs in .c or .h files")
 		return
 	end
-	local bufnr = vim.api.nvim_get_current_buf()
 	M.toggle_state = not M.toggle_state
 	if M.toggle_state then
-		setup_autocmds_and_run(bufnr)
+		setup_autocmds_and_run()
 		print("NorminetteAutoCheck enable")
 	else
-		clear_autocmds_and_messages(bufnr)
+		clear_autocmds_and_messages()
 		print("NorminetteAutoCheck disable")
 	end
 	update_status()
@@ -220,20 +228,24 @@ function M.setup(opts)
 		},
 	}, M.namespace)
 
-	vim.api.nvim_create_autocmd("BufEnter", {
+	vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "BufWritePost" }, {
 		pattern = { "*.c", "*.h" },
 		callback = function()
 			if M.toggle_state then
-				M.run_norminette()
+				run_norminette_check(vim.api.nvim_get_current_buf(), M.namespace)
+			else
+				clear_diagnostics(M.namespace, vim.api.nvim_get_current_buf())
 			end
 		end,
 		group = vim.api.nvim_create_augroup("NorminetteInitialUpdate", { clear = true }),
 	})
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufEnter", "BufWritePost" }, {
+	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
 		pattern = { "*.c", "*.h" },
 		callback = function(ev)
 			if M.show_size then
 				update_function_sizes(ev.buf)
+			else
+				clear_function_sizes(vim.api.nvim_get_current_buf())
 			end
 		end,
 		group = vim.api.nvim_create_augroup("NorminetteInitialUpdate", { clear = true }),
