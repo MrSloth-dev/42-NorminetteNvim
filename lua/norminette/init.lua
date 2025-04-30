@@ -1,18 +1,59 @@
 local M = {}
 
-M.version = "0.6.1"
+M.version = "0.7.0"
 
 M.dependencies = { "nvim-lua/plenary.nvim", "echasnovski/mini.icons" }
 M.namespace = vim.api.nvim_create_namespace("norminette")
 M.toggle_state = false
 M.show_size = true
+M.has_norminette = nil
+M.has_flake8 = nil
+M.has_plenary = nil
+M.has_async = nil
 
-local has_plenary, async = pcall(require, "plenary.async")
-if not has_plenary then
-	error("This plugin requires plenary.nvim. Please install it to use this plugin.")
+local function is_command_available(command)
+	local handle = io.popen("command -v " .. command .. " 2>/dev/null")
+	if not handle then
+		return false
+	end
+	local result = handle:read("*a")
+	handle:close()
+
+	return result ~= ""
 end
 
-local function parse_norminette_output(output)
+local function check_norminette_install()
+	if not is_command_available("norminette") then
+		vim.notify("norminette not installed or not in PATH. C linting is disabled")
+		return false
+	end
+	return true
+end
+
+local function check_flake8_install()
+	if not is_command_available("flake8") then
+		vim.notify("flake8 not installed or not in PATH. Python linting is disabled")
+		return false
+	end
+	return true
+end
+
+local function init_tool_check()
+	M.has_plenary, M.has_async = pcall(require, "plenary.async")
+	if not M.has_plenary or not M.has_async then
+		vim.notify("This plugin requires plenary.nvim. Please install it to use this plugin.")
+		return false
+	end
+	if M.has_norminette == nil then
+		M.has_norminette = check_norminette_install()
+	end
+	if M.has_flake8 == nil then
+		M.has_flake8 = check_flake8_install()
+	end
+	return true
+end
+
+local function parse_c_output(output)
 	local diagnostics = {}
 	local current_file = nil
 	for line in output:gmatch("[^\r\n]+") do
@@ -48,11 +89,11 @@ local function run_norminette_check(bufnr, namespace)
 		vim.api.nvim_command("silent update")
 	end
 	local filename = vim.api.nvim_buf_get_name(bufnr)
-	async.run(function()
+	M.has_async.run(function()
 		local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
 		return output
 	end, function(output)
-		local diagnostics = parse_norminette_output(output)
+		local diagnostics = parse_c_output(output)
 		vim.schedule(function()
 			vim.diagnostic.reset(namespace, bufnr)
 			vim.diagnostic.set(namespace, bufnr, diagnostics)
@@ -80,7 +121,7 @@ end
 
 local function correct_filetype()
 	local file_type = vim.bo.filetype
-	return file_type == "c" or file_type == "cpp" -- h is identified with cpp... idk why
+	return file_type == "c" or file_type == "cpp" or file_type == "python" -- h is identified with cpp... idk why
 end
 
 local function update_function_sizes(bufnr)
@@ -93,12 +134,7 @@ local function update_function_sizes(bufnr)
 	local tree = parser:parse()[1]
 	local root = tree:root()
 
-	local query = vim.treesitter.query.parse(
-		"c",
-		[[
-        (function_definition) @declaration
-    ]]
-	)
+	local query = vim.treesitter.query.parse("c", [[ (function_definition) @declaration ]])
 	for _, node in query:iter_captures(root, bufnr, 0, -1) do
 		local start_row, _, end_row, _ = node:range()
 		local size = end_row - start_row - 2
@@ -117,7 +153,7 @@ end
 
 local function setup_clear_diagnostics_autocmd(bufnr)
 	vim.api.nvim_create_autocmd("BufLeave", {
-		pattern = { "*.c", "*.h" },
+		pattern = { "*.c", "*.h", "*.py" },
 		callback = function()
 			clear_diagnostics(M.namespace, bufnr)
 		end,
@@ -127,7 +163,7 @@ end
 
 local function setup_autocmds_and_run()
 	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
-		pattern = { "*.c", "*.h" },
+		pattern = { "*.c", "*.h", "*.py" },
 		callback = function()
 			setup_clear_diagnostics_autocmd(vim.api.nvim_get_current_buf())
 			if M.toggle_state then
@@ -150,7 +186,7 @@ local function setup_size_autocmd(bufnr)
 	update_function_sizes(bufnr)
 	run_norminette_check(bufnr, M.namespace)
 	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
-		pattern = { "*.c", ".h" },
+		pattern = { "*.c", ".h", "*.py" },
 		callback = function()
 			update_function_sizes(bufnr)
 		end,
@@ -166,8 +202,11 @@ local function clear_function_sizes(bufnr)
 end
 
 local function toggle_norminette()
+	if not init_tool_check() then
+		return
+	end
 	if not correct_filetype() then
-		print("Norminette only runs in .c or .h files")
+		print("Norminette only runs in .c or .h or .py files")
 		return
 	end
 	M.toggle_state = not M.toggle_state
@@ -182,8 +221,11 @@ local function toggle_norminette()
 end
 
 local function toggle_size()
-	if not correct_filetype() then
-		print("Norminette only runs in .c or .h files")
+	if not init_tool_check() then
+		return
+	end
+	if not correct_filetype() and vim.bo.file_type ~= "py" then
+		print("Norminette size function only runs in .c or .h files")
 		return
 	end
 	local bufnr = vim.api.nvim_get_current_buf()
@@ -198,6 +240,9 @@ local function toggle_size()
 end
 
 function M.setup(opts)
+	if not init_tool_check() then
+		return
+	end
 	opts = opts or {}
 	local default_opts = {
 		norm_keybind = "<leader>n",
