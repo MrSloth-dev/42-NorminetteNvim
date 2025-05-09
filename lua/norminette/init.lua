@@ -80,6 +80,30 @@ local function parse_c_output(output)
 	return diagnostics
 end
 
+local function parse_python_output(output)
+	local diagnostics = {}
+	local current_file = nil
+	for line in output:gmatch("[^\r\n]+") do
+		current_file = line:match("^(.+.py):")
+		print(line)
+		local line_num, col_num, message = line:match("%S+%.py:(%d+):(%d+):%s+(.+)") -- This time wasn't so bad hmkay?
+		if line_num and col_num and message then
+			local diagnostic = {
+				bufnr = vim.fn.bufnr(current_file),
+				lnum = tonumber(line_num) - 1,
+				col = tonumber(col_num) - 1,
+				severity = vim.diagnostic.severity.ERROR,
+				source = "flake8",
+				message = message,
+			}
+			table.insert(diagnostics, diagnostic)
+		else
+			print("Failed to parse error line:", line)
+		end
+	end
+	return diagnostics
+end
+
 local function clear_diagnostics(namespace, bufnr)
 	vim.diagnostic.reset(namespace, bufnr)
 end
@@ -89,11 +113,24 @@ local function run_norminette_check(bufnr, namespace)
 		vim.api.nvim_command("silent update")
 	end
 	local filename = vim.api.nvim_buf_get_name(bufnr)
+	local filetype = vim.bo.filetype
 	M.has_async.run(function()
-		local output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
+		local output = nil
+		if filetype == "c" or filetype == "cpp" then
+			output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
+		else
+			output = vim.fn.system("flake8 " .. vim.fn.shellescape(filename))
+			print("engaging python")
+		end
 		return output
 	end, function(output)
-		local diagnostics = parse_c_output(output)
+		local diagnostics = nil
+		if filetype == "c" or filetype == "cpp" then
+			diagnostics = parse_c_output(output)
+		else
+			print("engaging python")
+			diagnostics = parse_python_output(output)
+		end
 		vim.schedule(function()
 			vim.diagnostic.reset(namespace, bufnr)
 			vim.diagnostic.set(namespace, bufnr, diagnostics)
@@ -185,7 +222,7 @@ end
 local function setup_size_autocmd(bufnr)
 	update_function_sizes(bufnr)
 	run_norminette_check(bufnr, M.namespace)
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
+	vim.api.nvim_create_autocmd({ "TextChanged", "BufWinEnter", "BufEnter", "BufWritePost" }, {
 		pattern = { "*.c", ".h", "*.py" },
 		callback = function()
 			update_function_sizes(bufnr)
@@ -296,7 +333,7 @@ function M.setup(opts)
 		end,
 		group = vim.api.nvim_create_augroup("NorminetteInitialUpdate", { clear = true }),
 	})
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter", "BufEnter", "BufWritePost" }, {
+	vim.api.nvim_create_autocmd({ "TextChanged", "BufWinEnter", "BufEnter", "BufWritePost" }, {
 		pattern = { "*.c", "*.h" },
 		callback = function(ev)
 			if M.show_size then
