@@ -120,7 +120,6 @@ local function run_norminette_check(bufnr, namespace)
 			output = vim.fn.system("norminette " .. vim.fn.shellescape(filename))
 		else
 			output = vim.fn.system("flake8 " .. vim.fn.shellescape(filename))
-			print("engaging python")
 		end
 		return output
 	end, function(output)
@@ -128,7 +127,6 @@ local function run_norminette_check(bufnr, namespace)
 		if filetype == "c" or filetype == "cpp" then
 			diagnostics = parse_c_output(output)
 		else
-			print("engaging python")
 			diagnostics = parse_python_output(output)
 		end
 		vim.schedule(function()
