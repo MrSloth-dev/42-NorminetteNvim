@@ -1,6 +1,6 @@
 # 42-NorminetteNvim
 This plugin allows to show the norminette errors inside your buffer, through diagnostics and it's compatible with quickfixlist!
-It only works for `.c` and `.h` files.
+It works for `.c` ,`.h` and `.py` files.
 
 ![Demo](https://github.com/MrSloth-dev/42-NorminetteNvim/blob/main/Showcase/Showcase.gif?raw=true)
 <br>
@@ -18,8 +18,8 @@ use {
         require("norminette").setup({
 	    norm_keybind = "<leader>n",
 	    size_keybind = "<leader>ns",
-            diagnostic_color = "#00ff00",
             show_size = true,
+	    prefix = "✗",
         })
     end,
 }
@@ -37,7 +37,6 @@ use {
 		require("norminette").setup({
 			norm_keybind = "<leader>n",
 			size_keybind = "<leader>ns",
-			diagnost_color = "#00ff00",
 			show_size = true,
 		})
 	end,
@@ -49,6 +48,7 @@ use {
 
 - [Neovim >= 0.10](https://neovim.io/)
 - [Norminette (doh)](https://github.com/42School/norminette)
+- [flake8 (for python projects)](https://flake8.pycqa.org/en/latest/)
 - [Plenary.nvim](https://github.com/nvim-lua/plenary.nvim) for async.
 - [mini.icons](https://github.com/echasnovski/mini.icons) for toggle icon.
 
@@ -56,7 +56,7 @@ use {
 
 You can activate the toggle for Norm Errors in two ways : `:NorminetteToggle` or using the `<leader>n`, notice that you can change the keybind to your liking.
 
-Along with the Norm you can also check function sizes with `:NorminetteSizeToggle` using the `<leader>ns`.
+Along with the Norm you can also check function sizes with `:NorminetteSizeToggle` using the `<leader>ns`. (Only avaiable for C projects)
 
 By default the plugin is running on a asynchronous process to prevent slowdowns. But if you find the constant errors popping up or notice a slowdown, try to disable it.
 
@@ -79,10 +79,20 @@ To report a bug or ask for a feature, please open a [Github issue](https://githu
 
 - [x] Detect functions through tree-sitter
 - [x] Improve performance
+- [x] Add Python (using flake8) projects support
 - [ ] Auto-formatter for some of the errors.
 
 ## Changelog
 All notable changes to this project will be documented in this file.
+
+### [0.7] - 2025-05-09
+
+#### Added
+- Added support Python projects using `flake8`, the plugin that detect which filetype is and change the parsing accordingly.
+- Now you can change your prefix (default is `●`)
+
+#### Changed
+- Startup check only at toggle to prevent errors from appearing while working with files unrelated to 42.
 
 ### [0.6.1] - 2024-12-08
 
@@ -132,10 +142,12 @@ All notable changes to this project will be documented in this file.
 
 ### [0.3] - 2024-09-07
   
+ - #### Added
 In this version I added asynchronous task for the norminette so there won't be a slowdown
  
 #### Fixed
-On the previous version the toggle wasn't working properly because it wasn't clearning the diagnostics after running the command.
+ - On the previous version the toggle wasn't working properly because it wasn't clearning the diagnostics after running the command.
+
 Still doesn't Work in 42 yet.
 
 ### [0.2] - 2024-09-06
