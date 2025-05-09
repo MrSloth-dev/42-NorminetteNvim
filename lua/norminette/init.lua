@@ -10,6 +10,7 @@ M.has_norminette = nil
 M.has_flake8 = nil
 M.has_plenary = nil
 M.has_async = nil
+M.prefix = "●"
 
 local function is_command_available(command)
 	local handle = io.popen("command -v " .. command .. " 2>/dev/null")
@@ -24,7 +25,7 @@ end
 
 local function check_norminette_install()
 	if not is_command_available("norminette") then
-		vim.notify("norminette not installed or not in PATH. C linting is disabled")
+		vim.notify("norminette not installed or not in PATH. C linting is disabled", vim.log.levels.ERROR)
 		return false
 	end
 	return true
@@ -32,7 +33,7 @@ end
 
 local function check_flake8_install()
 	if not is_command_available("flake8") then
-		vim.notify("flake8 not installed or not in PATH. Python linting is disabled")
+		vim.notify("flake8 not installed or not in PATH. Python linting is disabled", vim.log.levels.ERROR)
 		return false
 	end
 	return true
@@ -40,15 +41,17 @@ end
 
 local function init_tool_check()
 	M.has_plenary, M.has_async = pcall(require, "plenary.async")
+	M.has_flake8 = check_flake8_install()
+	M.has_norminette = check_norminette_install()
 	if not M.has_plenary or not M.has_async then
-		vim.notify("This plugin requires plenary.nvim. Please install it to use this plugin.")
+		vim.notify("This plugin requires plenary.nvim. Please install it to use this plugin.", vim.log.levels.ERROR)
 		return false
 	end
-	if M.has_norminette == nil then
-		M.has_norminette = check_norminette_install()
+	if (vim.bo.filetype == "c" or vim.bo.filetype == "cpp") and not M.has_norminette then
+		return false
 	end
-	if M.has_flake8 == nil then
-		M.has_flake8 = check_flake8_install()
+	if vim.bo.filetype == "python" and not M.has_flake8 then
+		return false
 	end
 	return true
 end
@@ -85,7 +88,6 @@ local function parse_python_output(output)
 	local current_file = nil
 	for line in output:gmatch("[^\r\n]+") do
 		current_file = line:match("^(.+.py):")
-		print(line)
 		local line_num, col_num, message = line:match("%S+%.py:(%d+):(%d+):%s+(.+)") -- This time wasn't so bad hmkay?
 		if line_num and col_num and message then
 			local diagnostic = {
@@ -240,6 +242,7 @@ local function toggle_norminette()
 	if not init_tool_check() then
 		return
 	end
+
 	if not correct_filetype() then
 		print("Norminette only runs in .c or .h or .py files")
 		return
@@ -259,7 +262,7 @@ local function toggle_size()
 	if not init_tool_check() then
 		return
 	end
-	if not correct_filetype() and vim.bo.file_type ~= "py" then
+	if not correct_filetype() or vim.bo.filetype == "python" then
 		print("Norminette size function only runs in .c or .h files")
 		return
 	end
@@ -275,15 +278,12 @@ local function toggle_size()
 end
 
 function M.setup(opts)
-	if not init_tool_check() then
-		return
-	end
 	opts = opts or {}
 	local default_opts = {
 		norm_keybind = "<leader>n",
 		size_keybind = "<leader>ns",
-		diagnostic_color = "#00ff00",
 		show_size = true,
+		prefix = "●",
 	}
 	for key, value in pairs(default_opts) do
 		if opts[key] == nil then
@@ -292,6 +292,8 @@ function M.setup(opts)
 	end
 
 	M.show_size = opts.show_size
+	M.prefix = opts.prefix
+
 	if opts.norm_keybind then
 		vim.keymap.set("n", opts.norm_keybind, toggle_norminette, { noremap = true, silent = true })
 	end
@@ -299,7 +301,7 @@ function M.setup(opts)
 	if opts.size_keybind then
 		vim.keymap.set("n", opts.size_keybind, toggle_size, { noremap = true, silent = true })
 	end
-	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { fg = opts.diagnostic_color })
+	vim.api.nvim_set_hl(0, "NorminetteDiagnostic", { bg = "#00ff00" })
 	vim.api.nvim_create_user_command("NorminetteToggle", function()
 		toggle_norminette()
 	end, {})
@@ -315,7 +317,7 @@ function M.setup(opts)
 				end
 				return diagnostic.message
 			end,
-			prefix = "●",
+			prefix = opts.prefix,
 			hl_group = "NorminetteDiagnostic",
 		},
 	}, M.namespace)
