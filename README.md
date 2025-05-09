@@ -1,6 +1,6 @@
 # 42-NorminetteNvim
 This plugin allows to show the norminette errors inside your buffer, through diagnostics and it's compatible with quickfixlist!
-It only works for `.c` and `.h` files.
+It only works for `.c`, `.h` and `.py` files.
 
 ![Demo](https://github.com/MrSloth-dev/42-NorminetteNvim/blob/main/Showcase/Showcase.gif?raw=true)
 <br>
